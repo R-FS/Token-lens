@@ -73,17 +73,14 @@ export function calculateStepCostUsd(
 ): number {
   const safeInput = Math.max(0, Number.isFinite(inputTokens) ? inputTokens : 0);
   const safeOutput = Math.max(0, Number.isFinite(outputTokens) ? outputTokens : 0);
-  const safeCache = Math.min(
-    safeInput,
-    Math.max(0, Number.isFinite(cacheReadTokens) ? cacheReadTokens : 0)
-  );
+  const safeCache = Math.max(0, Number.isFinite(cacheReadTokens) ? cacheReadTokens : 0);
 
-  const uncachedInput = safeInput - safeCache;
-
-  const inputCost = (uncachedInput * pricing.inputPricePerMillion) / 1_000_000;
+  // In Antigravity/Gemini telemetry, input_tokens represents uncached input,
+  // and cache_read_tokens represents cached input.
+  const inputCost = (safeInput * pricing.inputPricePerMillion) / 1_000_000;
   const cacheCost = (safeCache * pricing.cacheReadPricePerMillion) / 1_000_000;
   const outputCost = (safeOutput * pricing.outputPricePerMillion) / 1_000_000;
 
   const total = inputCost + cacheCost + outputCost;
-  return Math.round(total * 1_000_000) / 1_000_000; // Round to 6 decimal places
+  return Math.round(total * 1_000_000) / 1_000_000;
 }

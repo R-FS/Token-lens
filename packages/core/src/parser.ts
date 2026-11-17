@@ -28,7 +28,7 @@ function parseRecordLine(line: string): RawTranscriptRecord | null {
 
     return obj as RawTranscriptRecord;
   } catch {
-    return null; // Ignore malformed or truncated lines safely
+    return null;
   }
 }
 
@@ -49,7 +49,7 @@ export async function parseTranscriptStream(
   let totalCacheReadTokens = 0;
   let totalCostUsd = 0;
   let activeModel = 'default';
-  let lastInputTokens = 0;
+  let lastWorkingContext = 0;
 
   for await (const line of rl) {
     totalSteps++;
@@ -58,7 +58,6 @@ export async function parseTranscriptStream(
       continue;
     }
 
-    // Process token metrics from steps with model usage (primarily PLANNER_RESPONSE)
     if (
       typeof record.input_tokens === 'number' ||
       typeof record.output_tokens === 'number'
@@ -83,7 +82,10 @@ export async function parseTranscriptStream(
       totalOutputTokens += outputTokens;
       totalCacheReadTokens += cacheReadTokens;
       totalCostUsd += costUsd;
-      lastInputTokens = inputTokens;
+
+      // The working context size of the model on this step is the full prompt:
+      // uncached input tokens + cached input tokens
+      lastWorkingContext = inputTokens + cacheReadTokens;
 
       steps.push({
         stepIndex: record.step_index,
@@ -91,7 +93,7 @@ export async function parseTranscriptStream(
         inputTokens,
         outputTokens,
         cacheReadTokens,
-        totalTokens: inputTokens + outputTokens,
+        totalTokens: inputTokens + cacheReadTokens + outputTokens,
         costUsd,
         timestamp: record.created_at || new Date().toISOString(),
       });
@@ -100,14 +102,15 @@ export async function parseTranscriptStream(
 
   const { pricing } = resolveModelConfig(activeModel, config);
   const contextHealth = evaluateContextHealth(
-    lastInputTokens,
+    lastWorkingContext,
     pricing.contextWindowLimit,
     config.alertThresholdPercent
   );
 
-  const totalTokens = totalInputTokens + totalOutputTokens;
-  const cacheHitRatePercent = totalInputTokens > 0
-    ? Math.round((totalCacheReadTokens / totalInputTokens) * 1000) / 10
+  const totalTokens = totalInputTokens + totalCacheReadTokens + totalOutputTokens;
+  const totalPromptTokens = totalInputTokens + totalCacheReadTokens;
+  const cacheHitRatePercent = totalPromptTokens > 0
+    ? Math.round((totalCacheReadTokens / totalPromptTokens) * 1000) / 10
     : 0;
 
   return {
@@ -120,7 +123,7 @@ export async function parseTranscriptStream(
     totalCostUsd: Math.round(totalCostUsd * 10000) / 10000,
     cacheHitRatePercent,
     activeModel,
-    lastInputTokens,
+    lastInputTokens: lastWorkingContext,
     contextHealth,
     steps,
   };

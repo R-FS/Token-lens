@@ -1,0 +1,9 @@
+{
+  "name": "token-lens",
+  "version": "0.1.0",
+  "description": "Real-time token analytics, cost intelligence, and context degradation monitor for Google Antigravity",
+  "hooks": "hooks.json",
+  "skills": [
+    "skills/token-lens"
+  ]
+}

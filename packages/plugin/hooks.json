@@ -1,0 +1,16 @@
+{
+  "token-lens-monitor": {
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "node dist/hooks/post-invocation.js"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node dist/hooks/session-summary.js"
+      }
+    ]
+  }
+}

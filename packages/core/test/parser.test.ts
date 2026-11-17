@@ -55,7 +55,8 @@ describe('Transcript Parser', () => {
     expect(summary.totalOutputTokens).toBe(1300);
     expect(summary.totalCacheReadTokens).toBe(25000);
     expect(summary.activeModel).toBe('gemini-3.8-flash-high');
-    expect(summary.lastInputTokens).toBe(30000);
+    // Total working context of the last turn is uncached (30,000) + cached (20,000) = 50,000
+    expect(summary.lastInputTokens).toBe(50000);
     expect(summary.totalCostUsd).toBeGreaterThan(0);
     expect(summary.steps).toHaveLength(2);
     expect(summary.contextHealth.status).toBe('OPTIMAL');

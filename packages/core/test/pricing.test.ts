@@ -26,12 +26,11 @@ describe('Pricing Engine', () => {
       contextWindowLimit: 200000,
     };
 
-    // Total input: 100,000, cached: 80,000, uncached: 20,000
     // Uncached input: 20k * $2/M = $0.04
     // Cached input: 80k * $0.2/M = $0.016
     // Output: 10k * $10/M = $0.10
     // Total: $0.04 + $0.016 + $0.10 = $0.156
-    const cost = calculateStepCostUsd(100000, 10000, 80000, pricing);
+    const cost = calculateStepCostUsd(20000, 10000, 80000, pricing);
     expect(cost).toBe(0.156);
   });
 
