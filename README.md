@@ -1,4 +1,4 @@
-# TokenLens (for Google Antigravity)
+# TokenLens
 
 > Real-time token analytics, cost intelligence, and context degradation monitor for Google Antigravity.
 
@@ -6,19 +6,27 @@
 
 ## Overview
 
-TokenLens is a developer observability plugin for Google Antigravity. It monitors token usage, calculates real-time API expenditure, tracks prompt cache hit rates, and alerts developers when an agent's context window is approaching the degradation zone (where hallucinations and instruction drift increase).
+TokenLens is a developer observability plugin designed for Google Antigravity. It monitors token usage, calculates real-time API expenditure, tracks prompt cache hit rates, and alerts developers when an agent context window is approaching saturation thresholds where attention degradation and hallucinations occur.
 
-## Features (Planned)
+## Core Features
 
-- 📊 **Real-time Token Observability**: Track prompt, completion, and cache tokens per turn and across entire sessions.
-- 💰 **Live Cost Engine**: Accurately maps token usage to dynamic pricing tiers for Gemini, Claude, OpenAI, and custom endpoints.
-- 🎯 **Context Health Meter**: Visual warning gauge before context window saturation degrades agent performance.
-- ⚡ **Antigravity Native**: Plugs directly into Antigravity lifecycle hooks (`hooks.json`) and streams metrics directly from `transcript.jsonl`.
-- 🖥️ **Auxiliary Sidecar UI**: Dedicated dashboard inside Antigravity's side panel.
+- Real-time Token Telemetry: Tracks prompt, completion, and cache tokens per step and across whole sessions.
+- Configurable Cost Engine: Accurately maps token usage to pricing tiers with full user-defined overrides via `.tokenlensrc.json`.
+- Context Health Monitor: Evaluates token density against model limits to warn before performance degrades.
+- Security-First Architecture: 100% local in-process execution with zero external data transmission.
+- Antigravity Native: Intercepts lifecycle events via `hooks.json` and streams metrics directly from `transcript.jsonl`.
+- Auxiliary Sidecar UI: Dedicated dashboard hosted in Antigravity's side panel.
 
-## Architecture & Specifications
+## Architecture and Specifications
 
-See [BLUEPRINT.md](./BLUEPRINT.md) for the complete engineering architecture and implementation roadmap.
+Refer to [BLUEPRINT.md](./BLUEPRINT.md) for the detailed technical design, threat model, and implementation roadmap.
+
+## Security
+
+TokenLens operates entirely in-memory and on local disk:
+- Zero telemetry or network transmission.
+- No storage or logging of sensitive prompt text or source code.
+- Strict dependency isolation using `pnpm` to protect against phantom dependency supply chain attacks.
 
 ## License
 

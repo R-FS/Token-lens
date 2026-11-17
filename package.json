@@ -1,0 +1,14 @@
+{
+  "name": "antigravity-token-lens-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time token analytics, cost intelligence, and context degradation monitor for Google Antigravity",
+  "author": "Antigravity TokenLens Contributors",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "pnpm --filter \"@tokenlens/*\" run build",
+    "test": "pnpm --filter \"@tokenlens/*\" run test",
+    "typecheck": "pnpm --filter \"@tokenlens/*\" run typecheck"
+  },
+  "packageManager": "pnpm@12.21.0"
+}

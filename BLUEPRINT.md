@@ -1,6 +1,6 @@
 # TokenLens: Architectural Blueprint & Engineering Specification
 
-> **Real-time token analytics, cost intelligence, and context degradation monitor for Google Antigravity.**
+> Real-time token analytics, cost intelligence, and context degradation monitor for Google Antigravity.
 
 ---
 
@@ -14,7 +14,34 @@ Modern AI-assisted IDEs empower developers through autonomous multi-step agent l
 
 ---
 
-## 2. System Architecture
+## 2. Security Architecture & Threat Model
+
+Security is a primary design pillar for TokenLens. Because this tool inspects development workflows, it enforces strict boundaries:
+
+### 2.1 Zero External Transmission (Air-Gapped Operation)
+- All log parsing, aggregation, and cost calculations are performed 100% locally in-process.
+- No telemetry, prompt tokens, code snippets, or usage statistics are transmitted across the network.
+- Outbound network calls are completely disabled in core analysis modules.
+
+### 2.2 Transcript & Content Sanitization
+- Although Antigravity logs token counts per step, user prompts and tool outputs can contain sensitive code, passwords, or environment variables.
+- The TokenLens core engine strictly extracts numeric metadata (`input_tokens`, `output_tokens`, `cache_read_tokens`, `model`) and ignores arbitrary code text unless the user explicitly requests prompt size profiling.
+- Content strings are never written to external files or exposed outside the local session.
+
+### 2.3 Dependency Isolation & Supply Chain Security
+- **Package Manager Choice: `pnpm`**
+  - Standard `npm` uses a flat, hoisted `node_modules` structure where packages can access dependencies they did not explicitly declare ("phantom dependencies"). This creates supply-chain attack vectors.
+  - `pnpm` creates a content-addressable store with strict symlink-based isolation. Packages can only access the exact dependencies defined in their `package.json`, neutralizing phantom dependency risks.
+- Strict lockfile enforcement (`pnpm-lock.yaml`) and automated vulnerability auditing.
+
+### 2.4 Input Validation & Path Traversal Prevention
+- Configuration files (`.tokenlensrc.json`) and transcript paths are verified against path traversal attacks.
+- File paths are strictly resolved within workspace boundaries.
+- All JSON and JSONL structures are validated using typed schemas to prevent prototype pollution and malformed payload crashes.
+
+---
+
+## 3. System Architecture
 
 ```mermaid
 flowchart TD
@@ -24,10 +51,11 @@ flowchart TD
         HooksEvent["Lifecycle Event (PostInvocation / Stop)"]
     end
 
-    subgraph Core["TokenLens Core Engine (TypeScript)"]
-        Parser["JSONL Streaming Parser"]
+    subgraph Core["TokenLens Core Engine (TypeScript / pnpm)"]
+        ConfigLoader["Config Loader (.tokenlensrc.json + Overrides)"]
+        Parser["JSONL Streaming Parser (Schema-validated)"]
         Aggregator["Token & Context Aggregator"]
-        PricingEngine["Model Pricing & Cache Evaluator"]
+        PricingEngine["Configurable Pricing & Cache Evaluator"]
         HealthEvaluator["Context Health & Degradation Monitor"]
     end
 
@@ -41,6 +69,7 @@ flowchart TD
     Agent -->|Emits lifecycle hook| HooksEvent
     HooksEvent -->|Triggers with stdin context| Parser
     Transcript -->|Reads incremental lines| Parser
+    ConfigLoader --> PricingEngine
     Parser --> Aggregator
     Aggregator --> PricingEngine
     Aggregator --> HealthEvaluator
@@ -51,73 +80,98 @@ flowchart TD
 
 ---
 
-## 3. Core Modules & Component Design
+## 4. Core Modules & Component Design
 
-### 3.1 `token-lens-core` (Data Processing Engine)
+### 4.1 `token-lens-core` (Data Processing Engine)
 - **Streaming Log Ingestion:** Parses `transcript.jsonl` efficiently without loading the entire multi-megabyte log into memory.
 - **Metrics Aggregation:**
   - `input_tokens` (System instructions, tools, conversation history, workspace files)
   - `output_tokens` (Model reasoning, plan, tool calls)
   - `cache_read_tokens` (Prompt cache hits)
   - `turn_duration_ms` & `step_count`
-- **Pricing Catalog:** Configurable pricing table mapping models to rates per 1M tokens:
-  - Gemini 2.0 Flash / Gemini 1.5 Pro
-  - Claude 3.5 Sonnet / Claude 3.7 Sonnet / Claude 3 Opus
-  - GPT-4o / GPT-4o-mini
-  - Custom / Local models (Ollama, vLLM: $0.00)
-- **Health Evaluator:**
+- **Configurable Pricing Engine:**
+  - **Default Rates:** Built-in standard rates per 1M tokens for major providers (Gemini, Claude, OpenAI, local models).
+  - **User Overrides:** Fully editable via `.tokenlensrc.json` or workspace settings. Users can define custom models, custom input/output/cache rates, enterprise discount percentages, or fixed rate cards.
+  - **Formula:**
+    $$\text{Cost} = \frac{(\text{input\_tokens} - \text{cache\_read\_tokens}) \times \text{InputPrice}}{10^6} + \frac{\text{cache\_read\_tokens} \times \text{CachePrice}}{10^6} + \frac{\text{output\_tokens} \times \text{OutputPrice}}{10^6}$$
+- **Context Health Evaluator:**
   - Computes context window utilization against model maximum limits.
   - Categorizes context health:
-    - 🟢 **Optimal (< 40% capacity):** Peak attention and instruction fidelity.
-    - 🟡 **Caution (40% - 70% capacity):** Minor attention drift possible; cache optimization recommended.
-    - 🔴 **Degraded (> 70% capacity):** High risk of hallucination and loop repetition. Compaction suggested.
+    - [Optimal] Below 40% capacity: High attention and instruction fidelity.
+    - [Caution] 40% to 70% capacity: Minor attention drift possible; cache optimization recommended.
+    - [Degraded] Above 70% capacity: Elevated risk of hallucination and repetition. Compaction suggested.
 
-### 3.2 `token-lens-plugin` (Antigravity Integration)
+### 4.2 User Configuration Schema (`.tokenlensrc.json`)
+
+To ensure full user control over costs, the user can place a `.tokenlensrc.json` file in their workspace or home directory:
+
+```json
+{
+  "currency": "USD",
+  "budgetLimit": 5.00,
+  "alertThresholdPercent": 65,
+  "models": {
+    "gemini-3.8-flash-high": {
+      "inputPricePerMillion": 0.15,
+      "outputPricePerMillion": 0.60,
+      "cacheReadPricePerMillion": 0.0375,
+      "contextWindowLimit": 1048576
+    },
+    "custom-enterprise-claude": {
+      "inputPricePerMillion": 2.40,
+      "outputPricePerMillion": 12.00,
+      "cacheReadPricePerMillion": 0.24,
+      "contextWindowLimit": 200000
+    },
+    "local-llama": {
+      "inputPricePerMillion": 0.00,
+      "outputPricePerMillion": 0.00,
+      "cacheReadPricePerMillion": 0.00,
+      "contextWindowLimit": 131072
+    }
+  }
+}
+```
+
+### 4.3 `token-lens-plugin` (Antigravity Integration)
 - **`hooks.json` Configuration:**
   - Binds to `PostInvocation` to process token telemetry after each agent turn.
   - Binds to `Stop` to summarize session-wide metrics when an agent terminates.
 - **Slash Commands & Skills:**
   - `/tokens`: Outputs a clean tabular breakdown of tokens per turn and total expenditure.
-  - `/context`: Visualizes current context saturation, breakdown of tokens (files vs. chat history), and provides actionable compaction guidance.
+  - `/context`: Visualizes current context saturation, breakdown of tokens, and actionable compaction guidance.
 
-### 3.3 `token-lens-ui` (Auxiliary Pane Sidecar)
+### 4.4 `token-lens-ui` (Auxiliary Pane Sidecar)
 - An interactive web panel hosted as an Antigravity Sidecar (`has_web_ui: true`, `entrypoint: SIDECAR_UI_ENTRYPOINT_AUX_PANE`).
 - **Visual Features:**
-  - **Context Saturation Gauge:** Radial progress meter displaying remaining tokens before model limit.
+  - **Context Saturation Gauge:** Progress meter displaying remaining tokens before model limit.
   - **Cost Ticker:** Cumulative session cost updated live.
   - **Token Burn Rate Chart:** Step-by-step bar chart illustrating token deltas per tool execution.
-  - **Composition Breakdown:** Pie chart dividing context between tools, system prompt, conversation history, and user input.
+  - **Settings Panel:** Direct in-UI configuration allowing the user to update their rates and model targets without manual file editing.
 
 ---
 
-## 4. Technology Stack
+## 5. Technology Stack
 
 | Layer | Technology | Rationale |
 | :--- | :--- | :--- |
-| **Language** | TypeScript (Node.js 20+) | Type safety, native ecosystem for VS Code and Antigravity tooling |
-| **Build System** | `tsup` / `esbuild` | Zero-config, ultra-fast compilation to dual ESM/CJS |
-| **Testing** | `vitest` | Blazing-fast unit and integration testing with native ESM support |
-| **Linting & Formatting** | `biome` or `eslint` + `prettier` | Consistent code style and high engineering standards |
-| **UI Sidecar** | React 19 + Tailwind CSS + Vite | Lightweight, fast rendering inside Antigravity's webview |
-| **CI/CD** | GitHub Actions | Automated lint, build, test matrix on push and PR |
+| **Package Manager** | `pnpm` | Strict dependency isolation, immune to phantom dependency supply chain vulnerabilities |
+| **Language** | TypeScript (Node.js 20+) | Static typing, strong standard library integration, IDE-native execution |
+| **Build System** | `tsup` | Minimal footprint, fast compilation to dual ESM/CJS |
+| **Testing** | `vitest` | Fast unit and integration testing with native ESM support |
+| **Linting & Formatting** | `eslint` + `prettier` | Strict security linting rules (`eslint-plugin-security`) |
+| **UI Sidecar** | React 19 + Tailwind CSS + Vite | Zero external runtime calls, lightweight client-side rendering |
+| **CI/CD** | GitHub Actions | Automated lint, dependency audit, and test execution |
 
 ---
 
-## 5. Engineering Implementation Roadmap
-
-```mermaid
-flowchart LR
-    M1["Milestone 1\nCore Parsing & Pricing"] --> M2["Milestone 2\nAntigravity Hook & CLI Alert"]
-    M2 --> M3["Milestone 3\nSlash Commands (/tokens, /context)"]
-    M3 --> M4["Milestone 4\nInteractive Webview Sidecar"]
-    M4 --> M5["Milestone 5\nPackaging, Docs & GitHub Release"]
-```
+## 6. Implementation Roadmap
 
 ### Phase 1: Core Engine & Testing
-- Define TypeScript schemas for `transcript.jsonl` events (`PLANNER_RESPONSE`, `USER_INPUT`, `GENERIC`).
-- Implement streaming JSONL parser and token aggregation logic.
-- Build pricing model engine with tests covering cache hits vs. misses.
-- Target > 90% unit test coverage.
+- Define TypeScript schemas for configuration, model catalogs, and `transcript.jsonl` events.
+- Implement `.tokenlensrc.json` loader with validation and default fallback catalog.
+- Build streaming JSONL parser and token aggregation logic.
+- Target over 90% unit test coverage.
 
 ### Phase 2: Antigravity Plugin & Hook Integration
 - Configure `hooks.json` listening to `PostInvocation`.
@@ -126,9 +180,8 @@ flowchart LR
 
 ### Phase 3: Sidecar UI & Visual Polish
 - Scaffold Vite + React sidecar configured with `sidecar.json`.
-- Implement responsive context gauge and cost metrics.
-- Support live polling or IPC message updates from the core hook.
+- Implement responsive context gauge, cost metrics, and user rate configuration panel.
 
 ### Phase 4: Release & Portfolio Showcasing
-- Comprehensive `README.md` with GIFs, architectural diagrams, and installation guide.
-- GitHub Actions CI badge, code coverage report, and automated release tags.
+- Comprehensive `README.md` with technical architectural documentation and setup instructions.
+- GitHub Actions CI workflow with automated security audits (`pnpm audit`).
