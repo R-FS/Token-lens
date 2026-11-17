@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "currency": "USD",
+  "budgetLimitUsd": 10.00,
+  "alertThresholdPercent": 70,
+  "models": {
+    "gemini-3.8-flash-high": {
+      "inputPricePerMillion": 0.15,
+      "outputPricePerMillion": 0.60,
+      "cacheReadPricePerMillion": 0.0375,
+      "contextWindowLimit": 1048576
+    },
+    "gemini-2.0-flash": {
+      "inputPricePerMillion": 0.10,
+      "outputPricePerMillion": 0.40,
+      "cacheReadPricePerMillion": 0.025,
+      "contextWindowLimit": 1048576
+    },
+    "claude-3-7-sonnet": {
+      "inputPricePerMillion": 3.00,
+      "outputPricePerMillion": 15.00,
+      "cacheReadPricePerMillion": 0.30,
+      "contextWindowLimit": 200000
+    },
+    "custom-local-llama": {
+      "inputPricePerMillion": 0.00,
+      "outputPricePerMillion": 0.00,
+      "cacheReadPricePerMillion": 0.00,
+      "contextWindowLimit": 131072
+    }
+  }
+}
