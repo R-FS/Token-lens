@@ -5,5 +5,8 @@
   "hooks": "hooks.json",
   "skills": [
     "skills/token-lens"
+  ],
+  "sidecars": [
+    "sidecars/token_lens_dashboard"
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "name": "@tokenlens/ui",
+  "version": "0.1.0",
+  "description": "Auxiliary Pane webview sidecar dashboard for Antigravity TokenLens",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@tokenlens/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  },
+  "license": "Apache-2.0"
+}

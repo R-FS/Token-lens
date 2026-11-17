@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TokenLens Telemetry Dashboard</title>
+  <style>
+    :root {
+      --bg: #121417;
+      --card-bg: #1c1f24;
+      --card-border: #2a2f38;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #3b82f6;
+      --optimal: #10b981;
+      --caution: #f59e0b;
+      --degraded: #ef4444;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 16px;
+    }
+
+    .title-group h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      background: #24292f;
+      border: 1px solid var(--card-border);
+    }
+
+    .badge-live {
+      color: var(--optimal);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-quota {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      border-color: rgba(56, 189, 248, 0.25);
+    }
+
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .card-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .card-subtext {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .health-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .health-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .meter-container {
+      width: 100%;
+      height: 10px;
+      background: #252a32;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--optimal);
+      transition: width 0.4s ease, background-color 0.4s ease;
+    }
+
+    .health-status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .status-optimal {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--optimal);
+    }
+
+    .status-caution {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--caution);
+    }
+
+    .status-degraded {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--degraded);
+    }
+
+    .recommendation-box {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .table-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .table-container {
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 500;
+      background: #181a1f;
+      position: sticky;
+      top: 0;
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .text-right {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-group">
+      <h1>TokenLens Monitor</h1>
+      <p id="activeModelLabel">Connecting to active conversation...</p>
+    </div>
+    <div class="badge badge-live" id="connectionStatus">Active Conversation</div>
+  </header>
+
+  <div class="grid-cards">
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div class="card-title" style="margin-bottom: 0;">Commercial Value</div>
+        <span class="badge badge-quota">Quota Included</span>
+      </div>
+      <div class="card-value" id="totalCost">$0.0000</div>
+      <div class="card-subtext">
+        <span>Billed: $0.00</span> &bull; <span id="turnCount">0 turns</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total Tokens (Session)</div>
+      <div class="card-value" id="totalTokens">0</div>
+      <div class="card-subtext" id="cacheHitRate">Cache hit rate: 0.0%</div>
+    </div>
+  </div>
+
+  <div class="health-section">
+    <div class="health-header">
+      <span style="font-weight: 600;">Context Window Saturation (This Conversation)</span>
+      <span class="health-status-badge status-optimal" id="healthStatusBadge">OPTIMAL</span>
+    </div>
+    <div class="meter-container">
+      <div class="meter-fill" id="meterFill"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+      <span id="contextNumbers">0 / 0 tokens</span>
+      <span id="saturationPercent">0.0%</span>
+    </div>
+    <div class="recommendation-box" id="healthRecommendation">
+      Monitoring context memory saturation for active conversation...
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-header">Turn-by-Turn History</div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Turn</th>
+            <th>Model</th>
+            <th class="text-right">Prompt</th>
+            <th class="text-right">Output</th>
+            <th class="text-right">Value</th>
+          </tr>
+        </thead>
+        <tbody id="stepsTableBody">
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">
+              No turns recorded yet for this session.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function formatNumber(num) {
+      return new Intl.NumberFormat('en-US').format(num || 0);
+    }
+
+    function formatCurrency(num) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4,
+      }).format(num || 0);
+    }
+
+    async function updateTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('activeModelLabel').textContent = 'Model: ' + data.activeModel + ' (Active Conversation)';
+        document.getElementById('totalCost').textContent = formatCurrency(data.totalCostUsd);
+        document.getElementById('turnCount').textContent = data.plannerTurns + ' turns';
+        document.getElementById('totalTokens').textContent = formatNumber(data.totalTokens);
+        document.getElementById('cacheHitRate').textContent = 'Cache hit rate: ' + data.cacheHitRatePercent.toFixed(1) + '%';
+
+        const health = data.contextHealth;
+        const saturation = health.saturationPercent;
+        const meterFill = document.getElementById('meterFill');
+        meterFill.style.width = Math.min(100, saturation) + '%';
+
+        const badge = document.getElementById('healthStatusBadge');
+        badge.className = 'health-status-badge';
+        if (health.status === 'OPTIMAL') {
+          badge.classList.add('status-optimal');
+          badge.textContent = 'OPTIMAL';
+          meterFill.style.backgroundColor = 'var(--optimal)';
+        } else if (health.status === 'CAUTION') {
+          badge.classList.add('status-caution');
+          badge.textContent = 'CAUTION';
+          meterFill.style.backgroundColor = 'var(--caution)';
+        } else {
+          badge.classList.add('status-degraded');
+          badge.textContent = 'DEGRADED';
+          meterFill.style.backgroundColor = 'var(--degraded)';
+        }
+
+        document.getElementById('contextNumbers').textContent = 
+          formatNumber(data.lastInputTokens) + ' / ' + formatNumber(health.maxContextTokens) + ' tokens';
+        document.getElementById('saturationPercent').textContent = saturation.toFixed(1) + '%';
+        document.getElementById('healthRecommendation').textContent = health.recommendation;
+
+        const tbody = document.getElementById('stepsTableBody');
+        if (data.steps && data.steps.length > 0) {
+          tbody.innerHTML = '';
+          const reversed = [...data.steps].reverse();
+          for (const step of reversed) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>#${step.stepIndex}</td>
+              <td><code>${step.model}</code></td>
+              <td class="text-right">${formatNumber(step.inputTokens + step.cacheReadTokens)}</td>
+              <td class="text-right">${formatNumber(step.outputTokens)}</td>
+              <td class="text-right">${formatCurrency(step.costUsd)}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update telemetry:', err);
+      }
+    }
+
+    updateTelemetry();
+    setInterval(updateTelemetry, 2500);
+  </script>
+</body>
+</html>
